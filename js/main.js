@@ -153,6 +153,8 @@
     game.idleNudge = 0;
     game.currentParts = new Set(lv.parts);
     if (opts.title) {
+      game.shipBuilt = new Set();
+      for (const L of LEVELS) if (game.progress.cleared.indexOf(L.id) >= 0) for (const p of L.parts) game.shipBuilt.add(p);
       game.phase = 'title';
       UI.hideHud();
       return;
@@ -1295,6 +1297,21 @@
     return best;
   }
 
+  /* 이 구간을 깨면 떨어져 나갈 (작은 쪽) 조각의 면들 */
+  function predictSplit(run) {
+    const st = game.sim;
+    const nb = new Set(st.broken);
+    for (const e of run.edges) nb.add(e);
+    const after = Geom.pieces(game.board, nb);
+    const e0 = game.board.edges[run.edges[0]];
+    const pa = after.pieceOfFace[e0.faces[0]];
+    const pb = after.pieceOfFace[e0.faces[1]];
+    if (pa === pb) return null;
+    const A = after.list[pa];
+    const B = after.list[pb];
+    return (A.area <= B.area ? A : B).faces;
+  }
+
   function startCrack(h) {
     const tf = tfOfFace(game.board.edges[h.run.edges[0]].faces[0]);
     game.anim = { run: h.run, pts: h.pts, L: h.L, s0: h.s0, d: 0, tf, accA: 0, accB: 0, lastA: h.s0, lastB: h.s0, done: false };
@@ -1610,7 +1627,7 @@
       const h = game.anim ? null : hitCrack(x, y, thr);
       const dv = hitDip(x, y);
       if (h && (!dv || h.d < 7)) {
-        game.press = { run: h.run, h, hold: 0, stressAcc: 0, type: e.pointerType, x, y };
+        game.press = { run: h.run, h, hold: 0, stressAcc: 0, type: e.pointerType, x, y, split: predictSplit(h.run) };
         game.hover = h;
         A.grain(0.08, undefined, 1.5);
         if (game.li === 0 && !game.flags.pressTip) {
@@ -1653,6 +1670,7 @@
             game.press.run = h.run;
             game.press.h = h;
             game.press.hold = 0;
+            game.press.split = predictSplit(h.run);
             A.grain(0.06, undefined, 1.5);
           } else {
             game.press.h = Object.assign(game.press.h, { s0: h.s0, run: h.run, pts: h.pts, L: h.L });
@@ -2040,6 +2058,7 @@
     }
     FX.drawLanded(game.fx, ctx, Vd, (f) => tfOfFace(f));
     drawGlint(ctx, Vd);
+    if (game.press && game.press.run && game.press.split && !game.anim) drawSplitHint(ctx, Vd, game.press.split, game.press.hold);
 
     // 진행 중인 금
     if (game.anim && game.anim.sA !== undefined) {
@@ -2229,6 +2248,26 @@
       }
     }
     void V;
+  }
+
+  /* 누르고 있는 동안: 떨어져 나갈 조각이 살짝 들린다 */
+  function drawSplitHint(ctx, V, faces, hold) {
+    const tf = tfOfFace(faces[0]);
+    if (!tf) return;
+    const k = Math.min(1, hold * 4);
+    const path = new Path2D();
+    for (const fid of faces) {
+      const pts = game.board.faces[fid].pts;
+      path.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) path.lineTo(pts[i][0], pts[i][1]);
+      path.closePath();
+    }
+    ctx.save();
+    Tor.applyPieceTransform(ctx, V, tf, 0);
+    ctx.globalAlpha = k;
+    ctx.fillStyle = `rgba(255,246,220,${0.13 + 0.05 * Math.sin(game.time * 8)})`;
+    ctx.fill(path);
+    ctx.restore();
   }
 
   /* 금을 따라 가끔 지나가는 빛: 만져 볼 수 있다는 신호 */

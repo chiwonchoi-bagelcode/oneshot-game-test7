@@ -23,7 +23,11 @@
     }
     const AC = G.AudioContext || G.webkitAudioContext;
     if (!AC) return;
-    ac = new AC();
+    build(new AC());
+  };
+
+  function build(ctx) {
+    ac = ctx;
     const comp = ac.createDynamicsCompressor();
     comp.threshold.value = -14;
     comp.knee.value = 10;
@@ -48,6 +52,26 @@
     noiseBuf = ac.createBuffer(1, len, ac.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  }
+
+  /* 점검용: 소리 하나를 오프라인으로 렌더링해 최대값/RMS를 돌려준다 */
+  A.renderTest = async function (name, sec) {
+    const saved = [ac, master, sfx, musicBus, noiseBuf, muted];
+    const off = new OfflineAudioContext(1, Math.round(44100 * (sec || 1.2)), 44100);
+    muted = false;
+    build(off);
+    A[name]();
+    const buf = await off.startRendering();
+    [ac, master, sfx, musicBus, noiseBuf, muted] = saved;
+    const d = buf.getChannelData(0);
+    let peak = 0;
+    let sum = 0;
+    for (let i = 0; i < d.length; i++) {
+      const v = Math.abs(d[i]);
+      if (v > peak) peak = v;
+      sum += d[i] * d[i];
+    }
+    return { name, peak: +peak.toFixed(3), rms: +Math.sqrt(sum / d.length).toFixed(4), nan: Number.isNaN(sum) };
   };
 
   A.setMuted = function (m) {
@@ -93,7 +117,7 @@
     const s = noise(t, 0.08, 0.8 + Math.random() * 0.6);
     const bp = filt('bandpass', (1600 + Math.random() * 4200) * bright, 0.9 + Math.random() * 2.4);
     const g = ac.createGain();
-    env(g, t, 0.0008, amp, 0.008 + Math.random() * 0.035);
+    env(g, t, 0.0008, amp * 4.5, 0.008 + Math.random() * 0.035);
     s.connect(bp);
     bp.connect(g);
     g.connect(sfx);
@@ -101,7 +125,7 @@
       const s2 = noise(t, 0.02, 1.5);
       const hp = filt('highpass', 6500, 0.7);
       const g2 = ac.createGain();
-      env(g2, t, 0.0005, amp * 0.6, 0.004);
+      env(g2, t, 0.0005, amp * 2.4, 0.004);
       s2.connect(hp);
       hp.connect(g2);
       g2.connect(sfx);
@@ -110,7 +134,7 @@
       const s3 = noise(t, 0.1, 0.5);
       const lp = filt('lowpass', 500 + Math.random() * 500, 0.8);
       const g3 = ac.createGain();
-      env(g3, t, 0.002, amp * 0.5, 0.04 + Math.random() * 0.04);
+      env(g3, t, 0.002, amp * 2.2, 0.04 + Math.random() * 0.04);
       s3.connect(lp);
       lp.connect(g3);
       g3.connect(sfx);
@@ -134,7 +158,7 @@
     const s = noise(t, 0.05, 1.2);
     const hp = filt('highpass', 2200, 0.8);
     const g = ac.createGain();
-    env(g, t, 0.0006, 0.6 * size, 0.018);
+    env(g, t, 0.0006, 1.1 * size, 0.018);
     s.connect(hp);
     hp.connect(g);
     g.connect(sfx);
@@ -152,7 +176,7 @@
     const s2 = noise(t, 0.2, 0.6);
     const lp = filt('lowpass', 700, 0.7);
     const g2 = ac.createGain();
-    env(g2, t, 0.002, 0.3 * size, 0.1);
+    env(g2, t, 0.002, 0.9 * size, 0.1);
     s2.connect(lp);
     lp.connect(g2);
     g2.connect(sfx);
@@ -173,7 +197,7 @@
     const s = noise(t, 0.05, 0.7);
     const bp = filt('bandpass', 1100, 1.5);
     const g = ac.createGain();
-    env(g, t, 0.001, 0.12, 0.03);
+    env(g, t, 0.001, 0.9, 0.03);
     s.connect(bp);
     bp.connect(g);
     g.connect(sfx);
@@ -187,7 +211,7 @@
     const s = noise(t, 0.03, 1);
     const bp = filt('bandpass', 2800 + Math.random() * 1600, 3.5);
     const g = ac.createGain();
-    env(g, t, 0.0006, amp || 0.06, 0.012);
+    env(g, t, 0.0006, (amp || 0.06) * 7, 0.012);
     s.connect(bp);
     bp.connect(g);
     g.connect(sfx);
@@ -214,7 +238,7 @@
     o.frequency.linearRampToValueAtTime(f * 1.35, t + 0.18);
     const bp = filt('bandpass', 1100, 7);
     const g = ac.createGain();
-    env(g, t, 0.03, 0.035, 0.2);
+    env(g, t, 0.03, 0.26, 0.2);
     o.connect(bp);
     bp.connect(g);
     g.connect(sfx);
@@ -231,7 +255,7 @@
     bp.frequency.setValueAtTime(700, t);
     bp.frequency.exponentialRampToValueAtTime(4200, t + 0.16);
     const g = ac.createGain();
-    env(g, t, 0.01, 0.16, 0.18);
+    env(g, t, 0.01, 1.0, 0.18);
     s.connect(bp);
     bp.connect(g);
     g.connect(sfx);
@@ -247,7 +271,7 @@
     lp.frequency.exponentialRampToValueAtTime(350, t + 0.6);
     const g = ac.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.07, t + 0.12);
+    g.gain.exponentialRampToValueAtTime(0.2, t + 0.12);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
     s.connect(lp);
     lp.connect(g);
@@ -275,7 +299,7 @@
       const s = noise(t + dt, 0.03, 1);
       const bp = filt('bandpass', 1800, 1.2);
       const g2 = ac.createGain();
-      env(g2, t + dt, 0.0006, 0.08 / (i + 1), 0.02);
+      env(g2, t + dt, 0.0006, 0.28 / (i + 1), 0.02);
       s.connect(bp);
       bp.connect(g2);
       g2.connect(sfx);
@@ -286,9 +310,9 @@
   A.lost = function () {
     if (!ok()) return;
     const t = now() + 0.15;
-    pluck(64, t, 0.12, 0.9, 'triangle');
-    pluck(60, t + 0.32, 0.12, 1.2, 'triangle');
-    pluck(48, t + 0.32, 0.08, 1.4, 'triangle');
+    pluck(64, t, 0.09, 0.9, 'triangle');
+    pluck(60, t + 0.32, 0.09, 1.2, 'triangle');
+    pluck(48, t + 0.32, 0.07, 1.4, 'triangle');
   };
 
   /* 작업 완료 종소리 */
@@ -321,7 +345,7 @@
     bp.frequency.exponentialRampToValueAtTime(2400, t + 0.45);
     const g = ac.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.09, t + 0.2);
+    g.gain.exponentialRampToValueAtTime(0.25, t + 0.2);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
     s.connect(bp);
     bp.connect(g);
@@ -336,7 +360,7 @@
     lp.frequency.setValueAtTime(2400, t);
     lp.frequency.exponentialRampToValueAtTime(400, t + 0.4);
     const g = ac.createGain();
-    env(g, t, 0.005, 0.12, 0.4);
+    env(g, t, 0.005, 0.35, 0.4);
     s.connect(lp);
     lp.connect(g);
     g.connect(sfx);
@@ -349,9 +373,9 @@
     const bp = filt('bandpass', 1300, 0.9);
     const g = ac.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.06, t + 0.03);
-    g.gain.exponentialRampToValueAtTime(0.02, t + 0.08);
-    g.gain.exponentialRampToValueAtTime(0.05, t + 0.11);
+    g.gain.exponentialRampToValueAtTime(0.18, t + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.06, t + 0.08);
+    g.gain.exponentialRampToValueAtTime(0.15, t + 0.11);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
     s.connect(bp);
     bp.connect(g);
@@ -366,7 +390,7 @@
     o.frequency.setValueAtTime(760, t);
     o.frequency.exponentialRampToValueAtTime(380, t + 0.04);
     const g = ac.createGain();
-    env(g, t, 0.0008, amp || 0.07, 0.05);
+    env(g, t, 0.0008, (amp || 0.07) * 2.2, 0.05);
     o.connect(g);
     g.connect(sfx);
     o.start(t);
@@ -379,7 +403,7 @@
     const s = noise(t, 0.02, 1);
     const bp = filt('bandpass', 2600, 2);
     const g = ac.createGain();
-    env(g, t, 0.0005, 0.08, 0.012);
+    env(g, t, 0.0005, 0.55, 0.012);
     s.connect(bp);
     bp.connect(g);
     g.connect(sfx);
@@ -392,7 +416,7 @@
       const s = noise(t + dt, 0.12, 0.5);
       const bp = filt('bandpass', 420, 3);
       const g = ac.createGain();
-      env(g, t + dt, 0.01, 0.05, 0.08);
+      env(g, t + dt, 0.01, 0.18, 0.08);
       s.connect(bp);
       bp.connect(g);
       g.connect(sfx);
