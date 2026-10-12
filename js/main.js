@@ -522,9 +522,9 @@
           break;
         }
         case 'flag': {
-          const z = 22 + syncBob * 0.6;
-          const ga = v3(aw[0] + dx * 4.2, aw[1] + dy * 4.2, z);
-          const gb = v3(bw[0] - dx * 4.2, bw[1] - dy * 4.2, z);
+          const z = 20 + syncBob * 0.6;
+          const ga = v3(aw[0] + dx * 8.2, aw[1] + dy * 8.2, z);
+          const gb = v3(bw[0] - dx * 8.2, bw[1] - dy * 8.2, z);
           const hgt = 11;
           let tl = ga;
           let tr = gb;
@@ -688,9 +688,9 @@
           break;
         }
         case 'bunting': {
-          const z = 21 + syncBob * 0.6;
-          const ga = v3(aw[0] + dx * 3.6, aw[1] + dy * 3.6, z);
-          const gb = v3(bw[0] - dx * 3.6, bw[1] - dy * 3.6, z);
+          const z = 19.5 + syncBob * 0.6;
+          const ga = v3(aw[0] + dx * 8.6, aw[1] + dy * 8.6, z);
+          const gb = v3(bw[0] - dx * 8.6, bw[1] - dy * 8.6, z);
           const sag = 3 + tugAmt * 4.5 + (status === 'blocked' ? 1 : 0) - prog * 1.5;
           add(anchorId, { hands: [v3(ga[0] - dx * 0.5, ga[1] - dy * 0.5, z + 0.5), v3(ga[0] + dx * 0.3, ga[1] + dy * 0.3, z - 1.4)], look: bw, kind: 'grip' });
           let end = gb;
