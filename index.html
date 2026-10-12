@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#1d2b26" />
+    <title>토르티야 정상회담</title>
+    <link rel="stylesheet" href="css/fonts.css" />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div id="frame">
+      <canvas id="game" aria-label="토르티야 회의판"></canvas>
+
+      <header id="hud" class="hidden">
+        <button id="btn-menu" class="icon-btn" aria-label="회의 목록">
+          <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+        </button>
+        <div id="hud-title">
+          <div id="hud-no">제1차 회의</div>
+          <div id="hud-name">첫 안건</div>
+        </div>
+        <button id="btn-sound" class="icon-btn" aria-label="소리 켜기/끄기">
+          <svg class="on" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" /><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" /></svg>
+          <svg class="off" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" /><path d="M17 9l5 6M22 9l-5 6" /></svg>
+        </button>
+      </header>
+
+      <div id="chips" class="hidden"></div>
+
+      <section id="memo" class="hidden">
+        <div id="memo-text"></div>
+        <div id="memo-actions">
+          <button id="btn-hint" class="small-btn hidden">의장의 귀띔</button>
+          <button id="btn-retry" class="small-btn">새 토르티야</button>
+        </div>
+      </section>
+
+      <div id="overlay" class="hidden">
+        <div id="card"></div>
+      </div>
+
+      <div id="title-screen">
+        <div class="title-top">
+          <div class="title-kicker">소인국 연합 공동 구조선 건조 회의</div>
+          <h1>토르티야 정상회담</h1>
+          <p class="title-sub">회의판이 바삭합니다. 한 번 쪼갠 판은 다시 붙지 않습니다.</p>
+        </div>
+        <div class="title-bottom">
+          <button id="btn-start" class="big-btn">회의 시작</button>
+          <button id="btn-levels" class="ghost-btn">회의 목록</button>
+          <div class="title-foot">소리를 켜고 하면 더 바삭합니다</div>
+        </div>
+      </div>
+      <div id="rotate-hint">휴대폰을 세로로 들어 주세요</div>
+    </div>
+
+    <script src="js/util.js"></script>
+    <script src="js/geom.js"></script>
+    <script src="js/levels.js"></script>
+    <script src="js/sim.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/tortilla.js"></script>
+    <script src="js/diplomat.js"></script>
+    <script src="js/props.js"></script>
+    <script src="js/ship.js"></script>
+    <script src="js/fx.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>

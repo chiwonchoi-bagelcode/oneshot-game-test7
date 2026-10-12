@@ -1,0 +1,221 @@
+/* 토르티야 정상회담 — 가상 소국과 회의(레벨) 데이터
+ * 판 좌표: 반지름 ~100, y는 화면 아래쪽(앞).
+ * 인물 역할: 팀(tasks[].team), 방해(obstructs), 참견꾼(busy).
+ */
+(function (G) {
+  'use strict';
+  const TS = G.TS || (G.TS = {});
+
+  TS.NATIONS = {
+    arven: { name: '아르벤', color: '#2f6fd0', color2: '#ffffff', flag: 'star' },
+    soleta: { name: '솔레타', color: '#e8b326', color2: '#e0662a', flag: 'sun' },
+    ker: { name: '케르', color: '#d23b35', color2: '#ffffff', flag: 'bicolor' },
+    bronia: { name: '브로니아', color: '#2f9a58', color2: '#ffffff', flag: 'diagonal' },
+    mirado: { name: '미라도', color: '#7d4bc2', color2: '#f2c94c', flag: 'crescent' },
+    pelik: { name: '펠리크', color: '#ee7d2b', color2: '#ffffff', flag: 'pale' },
+    ortel: { name: '오르텔', color: '#1f9aa0', color2: '#ffffff', flag: 'cross' },
+    norva: { name: '노르바', color: '#33406b', color2: '#e9e2cf', flag: 'check' },
+    talis: { name: '탈리스', color: '#c4487e', color2: '#ffffff', flag: 'dots' },
+  };
+
+  TS.PARTS = {
+    hull: { name: '선체' },
+    mast: { name: '돛대와 돛' },
+    deck: { name: '갑판' },
+    flag: { name: '연합 깃발' },
+    oars: { name: '노' },
+    rail: { name: '난간' },
+    helm: { name: '조타륜' },
+    ring: { name: '구명환' },
+    cabin: { name: '선실' },
+    anchor: { name: '닻' },
+    bunting: { name: '만국기' },
+    lamp: { name: '뱃머리 등' },
+  };
+
+  TS.LEVELS = [
+    {
+      id: 'l1',
+      no: 1,
+      title: '첫 안건',
+      goal: '구조선의 선체 판자를 들어 올린다',
+      memo: '두 대표가 판자를 함께 들고 있다. 그런데 누군가 밧줄로 판자를 잡아당기고 있다.',
+      tip: '금을 누르면 갈라질 길이 빛난다. 손을 떼면 그 길을 따라 쪼개진다.',
+      seed: 3,
+      parts: ['hull'],
+      cracks: [
+        { id: 'a', pts: [[-118, -4], [-60, -10], [-10, -6], [40, -14], [118, -10]] },
+        { id: 'b', pts: [[30, -118], [18, -50], [-2, 10], [-6, 50], [-22, 118]] },
+      ],
+      diplomats: [
+        { id: 'A', nation: 'arven', x: -50, y: 30, look: { face: 'stern', hair: 'side', acc: 'glasses' } },
+        { id: 'B', nation: 'soleta', x: 22, y: 34, look: { face: 'calm', hair: 'bun' } },
+        { id: 'C', nation: 'ker', x: -20, y: -42, obstructs: 'hull', look: { face: 'smile', hair: 'slick', acc: 'mustache', hairColor: '#2a1e17' }, pullLine: '아, 판자는 저희 쪽으로 조금만…' },
+      ],
+      tasks: [{ id: 'hull', type: 'plank', part: 'hull', team: ['A', 'B'], anchor: 'A' }],
+    },
+    {
+      id: 'l2',
+      no: 2,
+      title: '표정보다 손',
+      goal: '돛대를 세우고 돛을 편다',
+      memo: '찌푸린 얼굴이 꼭 방해꾼은 아니다. 웃는 얼굴이 꼭 동료도 아니다. 손이 무엇을 잡고 있는지 보라.',
+      tip: '대표를 누르면 무엇을 하는지 짧게 말해 준다.',
+      seed: 8,
+      parts: ['mast'],
+      cracks: [
+        { id: 'a', pts: [[34, -118], [30, -62], [36, -24], [70, -12], [118, -6]] },
+        { id: 'b', pts: [[-118, -10], [-62, -12], [-40, -48], [-30, -118]] },
+        { id: 'c', pts: [[-4, -118], [-6, -40], [-2, 30], [4, 118]] },
+      ],
+      diplomats: [
+        { id: 'A', nation: 'bronia', x: -30, y: 16, look: { face: 'grumpy', hair: 'bald', acc: 'mustache', hairColor: '#b8b2a6' } },
+        { id: 'B', nation: 'mirado', x: 32, y: 28, look: { face: 'calm', hair: 'long', hairColor: '#4a3426' } },
+        { id: 'C', nation: 'pelik', x: 62, y: -48, obstructs: 'mast', look: { face: 'smile', hair: 'curly', hairColor: '#8a3a1c' }, pullLine: '돛대가 조금 기울어야 보기 좋지요.' },
+        { id: 'D', nation: 'ortel', x: -66, y: -44, look: { face: 'grumpy', hair: 'side', acc: 'monocle', hairColor: '#1b1b1f' }, idle: 'arms', say: '…이 회의, 언제 끝납니까.' },
+      ],
+      tasks: [{ id: 'mast', type: 'mast', part: 'mast', team: ['A', 'B'], anchor: 'A' }],
+    },
+    {
+      id: 'l3',
+      no: 3,
+      title: '끝난 일은 놓아도 된다',
+      goal: '갑판을 깔고 연합 깃발을 편다',
+      memo: '작업이 끝난 팀은 서로 떨어져도 괜찮다. 아직 일하는 손만 같은 조각에 남기면 된다.',
+      tip: '진행 고리가 다 찰 때까지 지켜보는 것도 외교다.',
+      seed: 21,
+      parts: ['deck', 'flag'],
+      cracks: [
+        { id: 'w', pts: [[-118, -54], [-60, -56], [0, -60], [60, -64], [118, -66]] },
+        { id: 'x', pts: [[-16, -118], [-17, -60], [-13, -14], [14, 12], [60, 20], [118, 16]] },
+        { id: 'v', pts: [[30, 118], [28, 62], [27, 22], [30, -20], [42, -62], [52, -118]] },
+      ],
+      diplomats: [
+        { id: 'A', nation: 'norva', x: -42, y: -32, look: { face: 'stern', hair: 'side', acc: 'glasses' } },
+        { id: 'B', nation: 'talis', x: 9, y: -36, look: { face: 'calm', hair: 'bob', hairColor: '#1b1b1f' } },
+        { id: 'F', nation: 'ker', x: 14, y: -80, obstructs: 'deck', look: { face: 'smile', hair: 'slick', acc: 'mustache' }, pullLine: '갑판은 천천히 깔아도 됩니다.' },
+        { id: 'C', nation: 'soleta', x: 4, y: 40, look: { face: 'calm', hair: 'bun' } },
+        { id: 'D', nation: 'bronia', x: 50, y: 44, look: { face: 'grumpy', hair: 'curly' } },
+        { id: 'E', nation: 'mirado', x: 50, y: 0, obstructs: 'flag', look: { face: 'smile', hair: 'long', hairColor: '#7b5a3a' }, pullLine: '깃발은 아래로 좀 내려야죠.' },
+      ],
+      tasks: [
+        { id: 'deck', type: 'plank', part: 'deck', team: ['A', 'B'], anchor: 'A' },
+        { id: 'flag', type: 'flag', part: 'flag', team: ['C', 'D'], anchor: 'C' },
+      ],
+    },
+    {
+      id: 'l4',
+      no: 4,
+      title: '틈에서 멈추는 금',
+      goal: '노를 건네고 난간을 세운다',
+      memo: '이번 토르티야는 이미 한가운데가 갈라진 채 나왔다. 금은 벌어진 틈을 건너지 못한다.',
+      tip: '같은 금이라도 틈의 어느 쪽을 누르느냐에 따라 갈라지는 길이 다르다.',
+      seed: 34,
+      parts: ['oars', 'rail'],
+      prebroken: ['y'],
+      cracks: [
+        { id: 'y', pts: [[-6, -118], [-2, -60], [-8, -10], [0, 40], [-4, 118]] },
+        { id: 'x', pts: [[-118, 6], [-70, 2], [-30, 8], [10, -2], [50, 4], [118, 6]] },
+        { id: 'w', pts: [[118, -52], [74, -40], [62, -8], [70, 30], [118, 44]] },
+      ],
+      diplomats: [
+        { id: 'A', nation: 'pelik', x: -66, y: -28, look: { face: 'calm', hair: 'curly' } },
+        { id: 'B', nation: 'arven', x: -28, y: -34, look: { face: 'grumpy', hair: 'side', acc: 'glasses' } },
+        { id: 'E', nation: 'ortel', x: -40, y: 40, obstructs: 'oars', look: { face: 'smile', hair: 'bald', acc: 'mustache', hairColor: '#4a3426' }, pullLine: '노는 저희가 맡아 두겠습니다.' },
+        { id: 'C', nation: 'norva', x: 30, y: -30, look: { face: 'stern', hair: 'slick' } },
+        { id: 'D', nation: 'soleta', x: 36, y: 32, look: { face: 'calm', hair: 'long', hairColor: '#2a1e17' } },
+        { id: 'F', nation: 'talis', x: 80, y: -24, obstructs: 'rail', look: { face: 'smile', hair: 'bob' }, pullLine: '난간은 이쪽이 더 낫지요.' },
+      ],
+      tasks: [
+        { id: 'oars', type: 'oar', part: 'oars', team: ['A', 'B'], anchor: 'A' },
+        { id: 'rail', type: 'plank', part: 'rail', team: ['C', 'D'], anchor: 'C' },
+      ],
+    },
+    {
+      id: 'l5',
+      no: 5,
+      title: '두 손의 대표',
+      goal: '조타륜을 잡고 구명환을 단다',
+      memo: '한 손으로 돕고, 다른 손으로 잡아당기는 대표가 있다. 혼자 떼어 놓으면 돕던 손도 함께 떨어진다.',
+      tip: '누구를 누구에게서 떼어 놓을지 생각하자. 사람 전체가 아니라 관계를 끊는 것이다.',
+      seed: 55,
+      parts: ['helm', 'ring'],
+      cracks: [
+        { id: 'a', pts: [[-118, 70], [-50, 38], [-14, 8], [18, -30], [40, -118]] },
+        { id: 'b', pts: [[-40, -118], [-40, -60], [-37, -14], [-24, 2], [-6, -6], [2, -50], [8, -118]] },
+        { id: 'c', pts: [[-118, -14], [-80, -18], [-56, -38], [-52, -118]] },
+        { id: 'd', pts: [[118, 10], [64, 22], [34, 62], [28, 118]] },
+      ],
+      diplomats: [
+        { id: 'P', nation: 'arven', x: -52, y: -10, look: { face: 'calm', hair: 'side' } },
+        { id: 'O', nation: 'ker', x: -22, y: -16, obstructs: 'ring', look: { face: 'grumpy', hair: 'slick', acc: 'mustache', hairColor: '#1b1b1f' }, pullLine: '조타륜은 돕지요. 구명환은… 글쎄요.' },
+        { id: 'R', nation: 'pelik', x: -70, y: -52, obstructs: 'helm', look: { face: 'smile', hair: 'curly' }, pullLine: '키는 왼쪽으로 돌려야 합니다.' },
+        { id: 'M', nation: 'soleta', x: 10, y: 38, look: { face: 'calm', hair: 'bun' } },
+        { id: 'N', nation: 'bronia', x: 38, y: 22, look: { face: 'stern', hair: 'bald', acc: 'glasses' } },
+        { id: 'Q', nation: 'mirado', x: 60, y: 56, look: { face: 'grumpy', hair: 'long' }, idle: 'arms', say: '흥. 저는 구경만 합니다.' },
+      ],
+      tasks: [
+        { id: 'helm', type: 'helm', part: 'helm', team: ['P', 'O'], anchor: 'P' },
+        { id: 'ring', type: 'ring', part: 'ring', team: ['M', 'N'], anchor: 'M' },
+      ],
+    },
+    {
+      id: 'l6',
+      no: 6,
+      title: '참견꾼',
+      goal: '선실 벽을 세우고 닻을 든다',
+      memo: '어떤 대표는 떼어 놓으면 같은 조각의 다른 작업을 찾아간다. 떼기 전에 그 조각에 무엇이 남는지 보라.',
+      tip: '참견꾼은 끝나지 않은 작업으로 걸어간다. 끝난 작업에는 관심이 없다.',
+      seed: 66,
+      parts: ['cabin', 'anchor'],
+      cracks: [
+        { id: 'b', pts: [[-118, -22], [-60, -20], [0, -26], [60, -22], [118, -28]] },
+        { id: 'a', pts: [[46, 118], [40, 60], [36, 10], [44, -40], [40, -118]] },
+        { id: 'c', pts: [[-118, 24], [-76, 22], [-52, 44], [-46, 118]] },
+      ],
+      diplomats: [
+        { id: 'A', nation: 'talis', x: -46, y: -50, look: { face: 'stern', hair: 'bob' } },
+        { id: 'B', nation: 'norva', x: 2, y: -54, look: { face: 'calm', hair: 'side', acc: 'glasses' } },
+        { id: 'K', nation: 'ortel', x: -20, y: 2, busy: true, obstructs: 'cabin', look: { face: 'smile', hair: 'slick', acc: 'monocle', hairColor: '#b8b2a6' }, pullLine: '어디든 제 손이 필요하죠.', busyLine: '여기도 제가 거들죠.' },
+        { id: 'C', nation: 'arven', x: -30, y: 54, look: { face: 'grumpy', hair: 'curly' } },
+        { id: 'D', nation: 'pelik', x: 16, y: 58, look: { face: 'calm', hair: 'long' } },
+        { id: 'E', nation: 'mirado', x: 66, y: 40, obstructs: 'anchor', look: { face: 'smile', hair: 'bun' }, pullLine: '닻은 내려 두는 게 안전하죠.' },
+        { id: 'H', nation: 'bronia', x: -72, y: 52, look: { face: 'grumpy', hair: 'bald', acc: 'mustache' }, idle: 'arms', say: '…저 사람, 또 참견이군.' },
+      ],
+      tasks: [
+        { id: 'cabin', type: 'plank', part: 'cabin', team: ['A', 'B'], anchor: 'A', spot: [-22, -42] },
+        { id: 'anchor', type: 'anchor', part: 'anchor', team: ['C', 'D'], anchor: 'C', spot: [-8, 36] },
+      ],
+    },
+    {
+      id: 'l7',
+      no: 7,
+      title: '정상회담',
+      goal: '만국기를 걸고 뱃머리 등을 밝힌다',
+      memo: '마지막 회의다. 누가 무엇을 돕고, 누가 무엇을 붙잡는지, 떼어 낸 뒤 어디로 가는지까지 끝까지 보라.',
+      tip: '순서가 중요하다. 먼저 끝낼 수 있는 일을 끝내고, 그다음에 갈라라.',
+      seed: 77,
+      parts: ['bunting', 'lamp'],
+      cracks: [
+        { id: 'a', pts: [[-118, -34], [-60, -32], [0, -36], [60, -36], [118, -40]] },
+        { id: 'b', pts: [[-20, 118], [-16, 60], [-14, 20], [-16, -40], [-14, -118]] },
+        { id: 'c', pts: [[60, 118], [46, 60], [40, 20], [44, -20], [56, -118]] },
+        { id: 'd', pts: [[-118, 30], [-74, 34], [-46, 62], [-44, 118]] },
+      ],
+      diplomats: [
+        { id: 'A', nation: 'soleta', x: -58, y: -58, look: { face: 'calm', hair: 'bun' } },
+        { id: 'B', nation: 'arven', x: 6, y: -62, look: { face: 'grumpy', hair: 'side', acc: 'glasses' } },
+        { id: 'K', nation: 'ortel', x: -32, y: -10, busy: true, obstructs: 'bunting', look: { face: 'smile', hair: 'slick', acc: 'monocle', hairColor: '#b8b2a6' }, pullLine: '만국기는 제가 좀 정리하죠.', busyLine: '등불도 제가 거들죠.' },
+        { id: 'C', nation: 'bronia', x: 2, y: 38, look: { face: 'grumpy', hair: 'bald', acc: 'mustache' } },
+        { id: 'D', nation: 'talis', x: 30, y: 58, look: { face: 'calm', hair: 'bob' } },
+        { id: 'O', nation: 'ker', x: 60, y: 12, obstructs: 'lamp', look: { face: 'smile', hair: 'slick', acc: 'mustache' }, pullLine: '등불은 저희 쪽을 비춰야죠.' },
+        { id: 'E', nation: 'pelik', x: 78, y: -14, look: { face: 'grumpy', hair: 'curly' }, idle: 'arms', say: '…저는 손대지 않겠습니다.' },
+        { id: 'F', nation: 'norva', x: -68, y: 56, look: { face: 'stern', hair: 'side', acc: 'monocle' }, idle: 'arms', say: '전부 기록하고 있습니다.' },
+      ],
+      tasks: [
+        { id: 'bunting', type: 'bunting', part: 'bunting', team: ['A', 'B'], anchor: 'A', spot: [-26, -54] },
+        { id: 'lamp', type: 'lamp', part: 'lamp', team: ['C', 'D'], anchor: 'C', spot: [18, 44] },
+      ],
+    },
+  ];
+})(typeof window !== 'undefined' ? window : globalThis);
