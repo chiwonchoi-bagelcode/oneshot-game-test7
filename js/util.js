@@ -255,6 +255,14 @@
     return U.rgb(c[0] * (1 + f), c[1] * (1 + f), c[2] * (1 + f), a);
   };
 
+  /* 한국어 조사: 받침 여부에 따라 이/가, 을/를, 와/과, 은/는 */
+  U.josa = function (word, pair) {
+    const ch = word.charCodeAt(word.length - 1);
+    const has = ch >= 0xac00 && ch <= 0xd7a3 && (ch - 0xac00) % 28 !== 0;
+    const [a, b] = pair.split('/');
+    return word + (has ? a : b);
+  };
+
   /* 간단한 스프링 */
   U.spring = function (cur, vel, target, k, damp, dt) {
     const a = (target - cur) * k - vel * damp;

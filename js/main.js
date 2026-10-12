@@ -148,6 +148,9 @@
     game.shipPlan = new Set();
     for (const L of LEVELS) for (const p of L.parts) game.shipPlan.add(p);
     game.shipGlow = {};
+    game.shipSail = 0;
+    game.hitStop = 0;
+    game.idleNudge = 0;
     game.currentParts = new Set(lv.parts);
     if (opts.title) {
       game.phase = 'title';
@@ -329,7 +332,7 @@
       walk: null,
       step: null,
       stepAcc: 0,
-      t: { release: -1, relief: -1, sad: -1, joy: -1, startle: -1, bow: -1, shake: -1, arrive: -1 },
+      t: { release: -1, relief: -1, sad: -1, joy: -1, startle: -1, bow: -1, shake: -1, arrive: -1, wave: -1 },
       hop: 0,
       vhop: 0,
       sx: 0,
@@ -755,6 +758,11 @@
 
   /* ───────────────────────── 갱신 */
   function update(dt) {
+    if (game.hitStop > 0) {
+      game.hitStop -= dt;
+      game.shake = Math.max(game.shake, 2);
+      return;
+    }
     game.time += dt;
     // 타이머
     const due = game.timers.filter((tm) => tm.t <= game.time && tm.gen === game.gen);
@@ -795,6 +803,13 @@
       }
     }
     game.shake = Math.max(0, game.shake - dt * 18);
+    if (game.phase === 'play' && game.li === 0 && !game.sim.cracksUsed && !game.flags.pressTip) {
+      game.idleNudge += dt;
+      if (game.idleNudge > 9 && !game.flags.nudged) {
+        game.flags.nudged = true;
+        memo('밧줄을 쥔 손을 보라. 판자를 <b>드는</b> 두 사람과 <b>당기는</b> 한 사람 사이를 지나는 금은 어느 것일까.');
+      }
+    }
     updateCrack(dt);
     updateTasks(dt);
     updateDips(dt);
@@ -902,17 +917,49 @@
     game.phase = 'won';
     A.fanfare();
     A.duckMusic(0.7, 2.5);
-    for (const k in game.dips) {
-      game.dips[k].t.bow = game.time + Math.random() * 0.3;
+    const inTeam = new Set();
+    for (const tdef of game.level.tasks) {
+      const [i0, i1] = tdef.team;
+      const d0 = game.dips[i0];
+      const d1 = game.dips[i1];
+      inTeam.add(i0);
+      inTeam.add(i1);
+      if (game.sim.dip[i0].piece === game.sim.dip[i1].piece) {
+        const mx = (d0.lx + d1.lx) / 2;
+        const my = (d0.ly + d1.ly) / 2;
+        const [ux, uy] = norm2(d1.lx - d0.lx, d1.ly - d0.ly);
+        let arrived = 0;
+        const meet = () => {
+          if (++arrived === 2) {
+            d0.t.shake = d1.t.shake = game.time;
+            d0.shakeLong = d1.shakeLong = true;
+            A.knock(0.06);
+          }
+        };
+        [
+          [d0, [mx - ux * 6.5, my - uy * 6.5]],
+          [d1, [mx + ux * 6.5, my + uy * 6.5]],
+        ].forEach(([dv, dest]) => {
+          const path = findPath([dv.lx, dv.ly], dest);
+          later(0.4, () => (dv.walk = { path, i: 0, onArrive: meet, cosmetic: true }));
+        });
+      } else {
+        d0.t.wave = d1.t.wave = game.time + 0.3;
+        d0.waveTo = i1;
+        d1.waveTo = i0;
+      }
     }
+    for (const k in game.dips) if (!inTeam.has(k)) game.dips[k].t.bow = game.time + Math.random() * 0.3;
     for (const p of game.level.parts) game.shipGlow[p] = 1;
+    if (game.li === LEVELS.length - 1) game.shipSail = game.time + 1.2;
     const lv = game.level;
     const pr = game.progress;
     if (pr.cleared.indexOf(lv.id) < 0) pr.cleared.push(lv.id);
     const used = game.sim.cracksUsed;
     if (!pr.best[lv.id] || used < pr.best[lv.id]) pr.best[lv.id] = used;
     UI.saveProgress(pr);
-    UI.memo('합의가 이루어졌다. 구조선에 <b>' + lv.parts.map((p) => TS.PARTS[p].name).join(', ') + '</b>이(가) 더해졌다.');
+    const partNames = lv.parts.map((p) => TS.PARTS[p].name).join(', ');
+    UI.memo('합의가 이루어졌다. 구조선에 <b>' + partNames + '</b>' + U.josa(partNames, '이/가').slice(partNames.length) + ' 더해졌다.');
     later(1.6, () => {
       if (game.li === LEVELS.length - 1) A.horn();
       showWin();
@@ -937,14 +984,17 @@
           dv.ly = tgt[1];
           w.i++;
           if (w.i >= w.path.length) {
+            const cosmetic = w.cosmetic;
             dv.walk = null;
             dv.step = null;
-            const sd = game.sim.dip[dv.id];
-            sd.x = dv.lx;
-            sd.y = dv.ly;
-            sd.face = Geom.faceAt(game.board, sd.x, sd.y);
-            sd.piece = game.sim.pieces.pieceOfFace[sd.face];
-            dv.face = sd.face;
+            dv.face = Geom.faceAt(game.board, dv.lx, dv.ly);
+            if (!cosmetic) {
+              const sd = game.sim.dip[dv.id];
+              sd.x = dv.lx;
+              sd.y = dv.ly;
+              sd.face = dv.face;
+              sd.piece = game.sim.pieces.pieceOfFace[sd.face];
+            }
             dv.t.arrive = t;
             if (w.onArrive) w.onArrive();
           }
@@ -959,11 +1009,13 @@
           }
           if (Math.abs(dx) > 0.5) dv.facing = dx > 0 ? 1 : -1;
           dv.face = Geom.faceAt(game.board, dv.lx, dv.ly);
-          const sd = game.sim.dip[dv.id];
-          sd.x = dv.lx;
-          sd.y = dv.ly;
-          sd.face = dv.face;
-          sd.piece = game.sim.pieces.pieceOfFace[dv.face];
+          if (!w.cosmetic) {
+            const sd = game.sim.dip[dv.id];
+            sd.x = dv.lx;
+            sd.y = dv.ly;
+            sd.face = dv.face;
+            sd.piece = game.sim.pieces.pieceOfFace[dv.face];
+          }
         }
       }
       // 눈 깜빡임
@@ -1089,7 +1141,7 @@
       }
       // 악수 (완료 후 같은 조각에 있는 동료와)
       const shakeT = since('shake');
-      if (shakeT < 1.6 && !list.length) {
+      if ((shakeT < 1.6 || (dv.shakeLong && shakeT < 4)) && !list.length && !dv.walk) {
         const tdef = myTasks.find((tt) => st.tasks[tt.id].done);
         if (tdef) {
           const pid = tdef.team.find((m) => m !== k);
@@ -1111,9 +1163,23 @@
         dv.gaze = [Math.sin(k * Math.PI * 2), -0.3];
         expr = 'stern';
       }
+      // 갈라진 동료에게 손 흔들기
+      const waveT = since('wave');
+      if (waveT >= 0 && waveT < 3 && !list.length && dv.waveTo && game.dips[dv.waveTo]) {
+        const pw = game.dips[dv.waveTo].w;
+        dv.facing = pw[0] > w[0] ? 1 : -1;
+        const hx = w[0] + dv.facing * (4 + Math.sin(waveT * 12) * 1.6);
+        const hp = proj(v3(hx, w[1] - 1, 27));
+        if (dv.facing > 0) handR = hp;
+        else handL = hp;
+        if (dv.facing > 0) openR = true;
+        else openL = true;
+        expr = 'joy';
+        lookAt = [pw[0], pw[1], 20];
+      }
       // 걷는 중
       if (dv.walk) {
-        expr = dv.look.face === 'smile' ? 'smile' : 'stern';
+        expr = dv.walk.cosmetic ? 'joy' : dv.look.face === 'smile' ? 'smile' : 'stern';
         shoulderT = 0.1;
       }
       // 시선
@@ -1294,6 +1360,7 @@
       for (const grp of splits) area += Math.min.apply(null, grp.kids.map((k) => k.area));
       A.snap(U.clamp(0.55 + area / 9000, 0.6, 1.2));
       game.shake = 3.5;
+      game.hitStop = 0.06;
       // 파단선 전체에서 부스러기
       for (let s = 0; s < an.L; s += 5) {
         const p = U.pointAlong(an.pts, s);
@@ -1932,7 +1999,21 @@
     const b = game.bowl;
     Ship.drawBowl(ctx, b.x, b.y, b.rx, t, game.ripples);
     const plan = game.phase === 'title' ? new Set() : new Set(game.level.parts);
-    Ship.drawShip(ctx, b.x, b.y + 4, Math.min((b.rx * 0.72) / 60, (b.y - 60) / 78), t, game.shipBuilt, plan, game.shipGlow);
+    let shipX = b.x;
+    let shipY = b.y + 4;
+    let shipFlip = 1;
+    if (game.shipSail && t > game.shipSail) {
+      const a = (t - game.shipSail) * 0.55;
+      shipX += Math.sin(a) * b.rx * 0.32;
+      shipY += Math.sin(a * 2) * 3;
+      shipFlip = Math.cos(a) >= 0 ? 1 : -1;
+      if (Math.random() < 0.08) game.ripples.push({ x: shipX - shipFlip * 30, y: shipY + 10, t: 0, life: 1.4 });
+    }
+    ctx.save();
+    ctx.translate(shipX, 0);
+    ctx.scale(shipFlip, 1);
+    Ship.drawShip(ctx, 0, shipY, Math.min((b.rx * 0.72) / 60, (b.y - 60) / 78), t, game.shipBuilt, plan, game.shipGlow);
+    ctx.restore();
 
     // 판 등장 높이
     const dl = game.dropLift || 0;
