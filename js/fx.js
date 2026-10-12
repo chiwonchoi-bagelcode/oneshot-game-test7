@@ -159,19 +159,44 @@
     ctx.font = '600 12.5px "Gowun Dodum", sans-serif';
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
+    // 배치: 겹치면 위로 쌓는다
+    const placed = [];
+    const items = [];
     for (const b of fx.bubbles) {
       const hp = headPos(b.who);
       if (!hp) continue;
+      const tw = ctx.measureText(b.text).width;
+      const w = tw + 16;
+      const h = 22;
+      const x = U.clamp(hp[0], w / 2 + 4, W - w / 2 - 4);
+      items.push({ b, hp, w, h, x, y: hp[1] - 10 - h / 2 });
+    }
+    items.sort((p, q) => q.y - p.y);
+    for (const it of items) {
+      let moved = true;
+      let guard = 0;
+      while (moved && guard++ < 8) {
+        moved = false;
+        for (const r of placed) {
+          if (Math.abs(it.x - r.x) < (it.w + r.w) / 2 + 2 && Math.abs(it.y - r.y) < (it.h + r.h) / 2 + 2) {
+            it.y = r.y - (it.h + r.h) / 2 - 3;
+            moved = true;
+          }
+        }
+      }
+      placed.push(it);
+    }
+    for (const it of items) {
+      const b = it.b;
+      const hp = it.hp;
       const fin = U.smooth(b.t / 0.18);
       const fout = 1 - U.smooth((b.t - (b.dur - 0.3)) / 0.3);
       const a = Math.min(fin, fout);
       if (a <= 0) continue;
-      const tw = ctx.measureText(b.text).width;
-      const w = tw + 16;
-      const h = 22;
-      let x = hp[0];
-      const y = hp[1] - 10 - h / 2 - (1 - fin) * 4;
-      x = U.clamp(x, w / 2 + 4, W - w / 2 - 4);
+      const w = it.w;
+      const h = it.h;
+      const x = it.x;
+      const y = it.y - (1 - fin) * 4;
       ctx.globalAlpha = a;
       ctx.fillStyle = b.kind === 'think' ? 'rgba(255,253,246,0.92)' : b.kind === 'sad' ? '#efe6ff' : '#fffaf0';
       ctx.strokeStyle = 'rgba(70,45,25,0.45)';
@@ -191,13 +216,14 @@
         ctx.fill();
         ctx.stroke();
       } else {
+        const tail = Math.max(6, hp[1] - 4 - (y + h / 2));
         ctx.moveTo(tx - 4, y + h / 2 - 0.5);
-        ctx.lineTo(tx, y + h / 2 + 6);
+        ctx.lineTo(tx, y + h / 2 + tail);
         ctx.lineTo(tx + 4, y + h / 2 - 0.5);
         ctx.fill();
         ctx.beginPath();
         ctx.moveTo(tx - 4, y + h / 2);
-        ctx.lineTo(tx, y + h / 2 + 6);
+        ctx.lineTo(tx, y + h / 2 + tail);
         ctx.lineTo(tx + 4, y + h / 2);
         ctx.stroke();
       }
